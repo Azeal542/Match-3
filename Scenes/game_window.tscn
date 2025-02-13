@@ -30,3 +30,8 @@ height = 10
 x_start = 64
 y_start = 800
 offset = 64
+
+[node name="Destroy_timer" type="Timer" parent="."]
+one_shot = true
+
+[connection signal="timeout" from="Destroy_timer" to="Grid" method="_on_destroy_timer_timeout"]
