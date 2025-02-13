@@ -4,6 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://dkwvjjs55448s" path="res://Match 3 Assets/Match 3 Assets/Pieces/Pink Piece.png" id="2_ef1u2"]
 
 [node name="Pink Piece" instance=ExtResource("1_h05td")]
+color = "pink"
 
 [node name="Sprite2D" parent="." index="0"]
 texture = ExtResource("2_ef1u2")
