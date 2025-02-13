@@ -1,12 +1,15 @@
 extends Node2D
 
+enum {wait, move};
+var state;
+
 @export var width:int;
 @export var height:int;
 @export var x_start:int;
 @export var y_start:int;
 @export var offset:int;
-
-
+@export var y_offset:int;
+@export var initial_offset:int;
 
 var possible_pieces = [
 preload("res://Scenes/blue_piece.tscn"),
@@ -25,6 +28,7 @@ var controlling = false;
 
 # Called when the node enters the scene tree for the first time.
 func _ready():
+	state = move;
 	randomize();
 	all_pieces = make_2d_array();
 	spawn_pieces();
@@ -48,7 +52,8 @@ func spawn_pieces():
 				loops += 1;
 				piece = possible_pieces[rand].instantiate();
 			add_child(piece);
-			piece.position = grid_to_pixel(i, j);
+			piece.position = grid_to_pixel(i, j - initial_offset);
+			piece.move(grid_to_pixel(i,j));
 			all_pieces[i][j] = piece;
 			
 func match_at(i, j, color):
@@ -93,6 +98,7 @@ func swap_pieces(column, row, direction):
 	var first_piece = all_pieces[column][row];
 	var other_piece = all_pieces[column + direction.x][row+direction.y];
 	if first_piece != null && other_piece != null:
+		state = wait;
 		all_pieces[column][row] = other_piece;
 		all_pieces[column + direction.x][row + direction.y] = first_piece;
 		first_piece.move(grid_to_pixel(column + direction.x, row + direction.y));
@@ -148,11 +154,58 @@ func destroy_matched():
 				if all_pieces[i][j].matched:
 					all_pieces[i][j].queue_free()
 					all_pieces[i][j]
+	get_parent().get_node("Collapse_timer").start();
+
+func collapse_columns():
+	for i in width:
+		for j in height:
+			if all_pieces[i][j] == null:
+				for k in range(j+1, height):
+					if all_pieces[i][k] != null:
+						all_pieces[i][k].move(grid_to_pixel(i,j))
+						all_pieces[i][j] = all_pieces[i][k]
+						all_pieces[i][k] = null
+						break
+	get_parent().get_node("Refill_timer").start();
+
+func refill_columns():
+	for i in width:
+		for j in height:
+			if all_pieces[i][j] == null:
+				var rand = floor(randf_range(0, possible_pieces.size()));
+				var piece = possible_pieces[rand].instantiate();
+				var loops = 0;
+				while(match_at(i, j, piece.color) && loops < 100):
+					rand = floor(randf_range(0, possible_pieces.size()));
+					loops += 1;
+					piece = possible_pieces[rand].instantiate();
+				add_child(piece);
+				piece.position = grid_to_pixel(i, j - y_offset);
+				piece.move(grid_to_pixel(i,j));
+				all_pieces[i][j] = piece;
+	after_refill()
+
+func after_refill():
+	for i in width:
+		for j in height:
+			if all_pieces[i][j] != null:
+				if match_at(i,j,all_pieces[i][j].color):
+					find_matches()
+					get_parent().get_node("Destroy_timer").start()
+					return
+	state = move;
 	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta):
-	touch_input();
-
+	if state == move:
+		touch_input();
 
 func _on_destroy_timer_timeout():
-	destroy_matched()
+	destroy_matched();
+
+
+func _on_collapse_timer_timeout():
+	collapse_columns();
+
+func _on_refill_timer_timeout():
+	refill_columns();
