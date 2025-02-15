@@ -26,12 +26,20 @@ var first_touch = Vector2(0,0);
 var final_touch = Vector2(0,0);
 var controlling = false;
 
+var score = 0;
+var mult = 0;
+
+var timer_started = false
+
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	state = move;
 	randomize();
 	all_pieces = make_2d_array();
 	spawn_pieces();
+	get_parent().get_node("Score").text= str(score)
+
+	
 
 func make_2d_array():
 	var array = [];
@@ -85,14 +93,17 @@ func is_in_grid(grid_position):
 	
 func touch_input():
 	if Input.is_action_just_pressed("ui_touch"):
-		if is_in_grid(pixel_to_grid(get_global_mouse_position().x, get_global_mouse_position().y)):
+		if pixel_to_grid(get_global_mouse_position().x, get_global_mouse_position().y):
 			first_touch = pixel_to_grid(get_global_mouse_position().x, get_global_mouse_position().y);
 			controlling = true;
+			all_pieces[first_touch.x][first_touch.y].dim();
 	if Input.is_action_just_released("ui_touch"):
-		if is_in_grid(pixel_to_grid(get_global_mouse_position().x, get_global_mouse_position().y)) && controlling:
+		if pixel_to_grid(get_global_mouse_position().x, get_global_mouse_position().y) && controlling:
 			final_touch = pixel_to_grid(get_global_mouse_position().x, get_global_mouse_position().y);
 			touch_difference(first_touch, final_touch);
 			controlling = false;
+			all_pieces[first_touch.x][first_touch.y].undim();
+		all_pieces[first_touch.x][first_touch.y].undim();
 
 func swap_pieces(column, row, direction):
 	var first_piece = all_pieces[column][row];
@@ -104,7 +115,8 @@ func swap_pieces(column, row, direction):
 		first_piece.move(grid_to_pixel(column + direction.x, row + direction.y));
 		other_piece.move(grid_to_pixel(column, row));
 		find_matches();
-	
+		get_parent().get_node("Score").text= str(score)
+
 func touch_difference(grid_1, grid_2):
 	var difference = grid_2 - grid_1
 	if abs(difference.x) > abs(difference.y):
@@ -136,6 +148,7 @@ func find_matches():
 							all_pieces[i][j].dim();
 							all_pieces[i+1][j].matched = true;
 							all_pieces[i+1][j].dim();
+							get_parent().get_node("Destroy_timer").start();
 				if j > 0 && j < height - 1:
 					if all_pieces[i][j-1] != null && all_pieces[i][j+1] != null:
 						if all_pieces [i][j-1].color == current_color && all_pieces[i][j+1].color == current_color:
@@ -145,16 +158,25 @@ func find_matches():
 							all_pieces[i][j].dim();
 							all_pieces[i][j+1].matched = true;
 							all_pieces[i][j+1].dim();
-	get_parent().get_node("Destroy_timer").start();
+							get_parent().get_node("Destroy_timer").start();
+		state = move;
 
 func destroy_matched():
+	get_parent().get_node("Mult_timer").start();
+	timer_started = true;
 	for i in width:
 		for j in height:
 			if all_pieces[i][j] != null:
 				if all_pieces[i][j].matched:
-					all_pieces[i][j].queue_free()
+					all_pieces[i][j].queue_free();
+					score = score + (1 * mult);
+					mult +=1;
+					get_parent().get_node("Score").text= str(score);
+					get_parent().get_node("Crunch").pitch_scale=(randf_range(.5,1.5))
+					get_parent().get_node("Crunch").play(0);
 					all_pieces[i][j]
 	get_parent().get_node("Collapse_timer").start();
+
 
 func collapse_columns():
 	for i in width:
@@ -199,6 +221,8 @@ func after_refill():
 func _process(delta):
 	if state == move:
 		touch_input();
+	get_parent().get_node("Timer").text = str(get_parent().get_node("Mult_timer").get_time_left());
+
 
 func _on_destroy_timer_timeout():
 	destroy_matched();
@@ -209,3 +233,11 @@ func _on_collapse_timer_timeout():
 
 func _on_refill_timer_timeout():
 	refill_columns();
+
+
+func _on_mult_timer_timeout():
+		mult = 0;
+
+
+func _on_audio_stream_player_2d_finished():
+	get_parent().get_node("AudioStreamPlayer2D").play();

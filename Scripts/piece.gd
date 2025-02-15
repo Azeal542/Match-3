@@ -21,3 +21,6 @@ func _process(delta):
 func dim():
 	var sprite = get_node("Sprite2D")
 	sprite.modulate = Color(1,1,1,.5);
+func undim():
+	var sprite = get_node("Sprite2D")
+	sprite.modulate = Color(1,1,1,1)
